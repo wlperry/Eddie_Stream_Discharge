@@ -3,8 +3,6 @@ title: "Eddie Module on Stream discharge"
 output: html_notebook
 ---
 
-
-
 # USGS has libraries to retreive data from their system.    
 
 # install libraries - do only one time when first runnign script    

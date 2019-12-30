@@ -1,0 +1,252 @@
+---
+title: "Eddie module stream discharge from handout"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+# USGS has libraries to retreive data from their system.    
+
+# install libraries - do only one time when first runnign script    
+```{r install packages, message=TRUE, warning=TRUE}
+# https://github.com/USGS-R/dataRetrieval
+
+# general R packages to install if you dont have them
+# remove the "#" if you need to run the installations
+
+# install.packages("devtools") # essential in installing other thigs
+# install.packages("tidyverse") # installs a lot of things and ggplot
+# install.packages("scales") # allows great scale formatting on ggplot
+# install.packages("lubridate") # makes working with dates easier
+# install.packages("janitor") # clean names of columns and other things
+# install.packages("readxl") # read in excel files
+# install.packages("plotly") # interactive plots
+# install.packages(skimr)
+# devtools::install_github("thomasp85/patchwork") # multiple plots
+
+# specific to this module
+# install.packages("dataRetrieval") # USGS Data Retreiveal Method
+```
+
+
+Libraires
+```{r laod libraries, message=TRUE, warning=TRUE}
+# load these every time  
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(janitor)
+library(readxl)
+library(skimr)
+library(plotly)
+library(patchwork)
+
+# load the USGS package
+library(dataRetrieval)
+```
+
+Data from:
+USGS 12120000 MERCER CREEK NEAR BELLEVUE, WA
+https://waterdata.usgs.gov/nwis/inventory/?site_no=12120000
+
+USGS 12113000, Green River near Auburn, Washington
+https://waterdata.usgs.gov/nwis/inventory/?site_no=12113000
+
+USGS 12108500, Newaukum Creek near Black Diamond, Washington
+https://waterdata.usgs.gov/nwis/inventory/?site_no=12108500
+
+
+Read in file for ...
+```{r read in file}
+# Enter the site number below
+# Leave the start data and end data open as it will retreive all data
+siteNo <-         c("12120000", "12113000", "12108500")
+start.date <-     "1800-01-01"
+end.date <-       "2050-01-01"
+
+peak_q.df <- readNWISpeak(
+              siteNumbers = siteNo,
+              startDate = start.date,
+              endDate = end.date,
+              asDateTime = TRUE,
+              convertType = TRUE)
+  
+# Clean up the names and remove extra data
+peak_q.df <- peak_q.df %>% 
+  select(agency_cd, 
+         site_no, 
+         date = peak_dt, 
+         discharge_cfs = peak_va, 
+         gage_ht_ft = gage_ht)
+```
+
+Rename the sites
+```{r}
+peak_q.df <- peak_q.df %>% 
+  mutate(site = case_when(
+    site_no == 12120000 ~ "Mercer Cr",
+    site_no == 12113000 ~ "Green R",
+    site_no == 12108500 ~ "Newaukum Cr",
+    TRUE ~ "other"
+  ))
+```
+
+# Subdivide the sites
+```{r}
+green.df <- peak_q.df %>% filter(site == "Green R")
+mercer.df <- peak_q.df %>% filter(site == "Mercer Cr")
+new.df <- peak_q.df %>% filter(site == "Newaukum Cr")
+```
+
+
+# Graph of yearly peak discharge
+```{r}
+peak_q.df %>% 
+  ggplot(aes(x = date, y=discharge_cfs, color=site)) +
+  geom_line() +
+  geom_point()
+```
+
+# Look at the highest discharge on record
+```{r}
+peak_q.df %>%
+  group_by(site) %>% 
+  filter(
+    discharge_cfs  == max(discharge_cfs, na.rm=TRUE))
+```
+
+Discharge Statistics
+```{r}
+peak_q.df %>%
+  group_by(site) %>% 
+  summarize(
+    number = sum(!is.na(discharge_cfs)),
+    mean_discharge_csf = mean(discharge_cfs, na.rm=TRUE),
+    std_dev_discharge_csf = sd(discharge_cfs, na.rm=TRUE),
+    stderr = sd(discharge_cfs, na.rm=TRUE)/sqrt(sum(!is.na(discharge_cfs)))
+  )
+```
+
+# Calculating probability
+```{r}
+floodprob.df <- peak_q.df %>%
+  group_by(site) %>% 
+  arrange(site, desc(discharge_cfs))%>% 
+  mutate(rank  = 1:n()) %>% 
+  mutate(prob = rank / (n()+1)) %>%
+  mutate(pct_prob = prob * 100) %>% 
+  mutate(recurrence  = 1/prob)
+  
+```
+
+# Recurrance interval plot
+```{r}
+floodprob.df %>% 
+  ggplot(aes(x = recurrence, y=discharge_cfs, color=site)) +
+  geom_point() +
+  scale_y_continuous(labels= comma )
+```
+
+# Log Recurrance interval plot
+```{r}
+floodprob.df %>% 
+  group_by(site) %>% 
+  ggplot(aes(x = log10(recurrence), y=log10(discharge_cfs), color=site)) +
+  geom_point()
+```
+
+
+# Look at Mercer Creek Before and after 1977
+```{r} 
+mercer_urban.df <- mercer.df %>% 
+  mutate(year = year(date)) %>% 
+  mutate(pre_post = case_when(
+    year <= 1977 ~ "pre_1977",
+    year > 1977 ~ "post_1977"
+  ))
+```
+
+# Calculating probability Mercer Cr Pre Post 1977
+```{r}
+mercer_urban.df <- mercer_urban.df %>%
+  group_by(pre_post) %>% 
+  arrange(desc(discharge_cfs))%>% 
+  mutate(rank  = 1:n()) %>% 
+  mutate(prob = rank / (n()+1)) %>%
+  mutate(pct_prob = prob * 100) %>% 
+  mutate(recurrence  = 1/prob)
+```
+
+# Mercer Creek pre post recurrece interval plot
+```{r}
+mercer_urban.df %>% 
+  ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
+  geom_point() +
+  scale_y_continuous(labels = comma )
+
+```
+
+
+# Green River Dam Effects
+```{r} 
+green_dam.df <- green.df %>% 
+  mutate(year = year(date)) %>% 
+  mutate(pre_post = case_when(
+    year <= 1961 ~ "pre_1961",
+    year > 1961 ~ "post_1961"
+  ))
+```
+
+# Calculating probability Green R Pre Post 1961
+```{r}
+green_dam.df <- green_dam.df %>%
+  group_by(pre_post) %>% 
+  arrange(desc(discharge_cfs))%>% 
+  mutate(rank  = 1:n()) %>% 
+  mutate(prob = rank / (n()+1)) %>%
+  mutate(pct_prob = prob * 100) %>% 
+  mutate(recurrence  = 1/prob)
+```
+
+# Green R pre post recurrece interval plot
+```{r}
+green_dam.df %>% 
+  ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
+  geom_point() +
+  scale_y_continuous(labels = comma )
+
+```
+
+# New R River Dam Effects
+```{r} 
+new_dummy.df <- new.df %>% 
+  mutate(year = year(date)) %>% 
+  mutate(pre_post = case_when(
+    year <= 1977 ~ "pre_1977",
+    year > 1977 ~ "post_1977"
+  ))
+```
+
+# Calculating probability Green R Pre Post 1961
+```{r}
+new_dummy.df <- new_dummy.df %>%
+  group_by(pre_post) %>% 
+  arrange(desc(discharge_cfs))%>% 
+  mutate(rank  = 1:n()) %>% 
+  mutate(prob = rank / (n()+1)) %>%
+  mutate(pct_prob = prob * 100) %>% 
+  mutate(recurrence  = 1/prob)
+```
+
+
+
+# Mercer Creek pre post recurrece interval plot
+```{r}
+new_dummy.df %>% 
+  ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
+  geom_point() +
+  scale_y_continuous(labels = comma )
+```
+
+
+
