@@ -1,0 +1,115 @@
+---
+title: "Eddie Module on Stream discharge"
+output: html_notebook
+---
+
+
+
+# USGS has libraries to retreive data from their system.    
+
+# install libraries - do only one time when first runnign script    
+```{r install packages, message=TRUE, warning=TRUE}
+# https://github.com/USGS-R/dataRetrieval
+
+# general R packages to install if you dont have them
+# remove the "#" if you need to run the installations
+
+# install.packages("devtools") # essential in installing other thigs
+# install.packages("tidyverse") # installs a lot of things and ggplot
+# install.packages("scales") # allows great scale formatting on ggplot
+# install.packages("lubridate") # makes working with dates easier
+# install.packages("janitor") # clean names of columns and other things
+# install.packages("readxl") # read in excel files
+# install.packages("plotly") # interactive plots
+# install.packages(skimr)
+# devtools::install_github("thomasp85/patchwork") # multiple plots
+
+# specific to this module
+# install.packages("dataRetrieval") # USGS Data Retreiveal Method
+```
+
+
+Libraires
+```{r laod libraries, message=TRUE, warning=TRUE}
+# load these every time  
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(janitor)
+library(readxl)
+library(skimr)
+library(plotly)
+library(patchwork)
+
+# load the USGS package
+library(dataRetrieval)
+```
+
+all data
+https://waterdata.usgs.gov/mo/nwis/uv/?site_no=07010000&PARAmeter_cd=00065,63160,00060x
+
+# Read in file from excel sheet
+```{r}
+miq.df <- read_csv("../data/Mississippi River at St Louis.csv",
+                 guess_max = 10000)
+```
+
+# clean data
+```{r}
+miq.df <- miq.df %>% 
+  rename(date = peak_dt)
+```
+
+# Graph of yearly peak discharge
+```{r}
+miq.df %>% 
+  ggplot(aes(x = date, y=discharge_cfs)) +
+  geom_line() +
+  geom_point()
+```
+
+# Look at the highest discharge on record
+```{r}
+miq.df %>% 
+  filter(
+    discharge_cfs  == max(discharge_cfs, na.rm=TRUE))
+```
+
+Discharge Statistics
+```{r}
+miq.df %>%
+  summarize(
+    number = sum(!is.na(discharge_cfs)),
+    mean_discharge_csf = mean(discharge_cfs, na.rm=TRUE),
+    std_dev_discharge_csf = sd(discharge_cfs, na.rm=TRUE),
+    stderr = sd(discharge_cfs, na.rm=TRUE)/sqrt(sum(!is.na(discharge_cfs)))
+  )
+```
+
+# Calculating probability
+```{r}
+floodprob.df <- miq.df %>%
+  arrange(desc(discharge_cfs))%>% 
+  mutate(rank  = 1:n()) %>% 
+  mutate(prob = rank / (n()+1)) %>%
+  mutate(pct_prob = prob * 100) %>% 
+  mutate(recurrence  = 1/prob)
+  
+```
+
+# Recurrance interval plot
+```{r}
+floodprob.df %>% 
+  ggplot(aes(x = recurrence, y=discharge_cfs)) +
+  geom_point() +
+  scale_y_continuous(labels= comma )
+```
+
+# Log Recurrance interval plot
+```{r}
+floodprob.df %>% 
+  ggplot(aes(x = log10(recurrence), y=log10(discharge_cfs))) +
+  geom_point()
+```
+
+

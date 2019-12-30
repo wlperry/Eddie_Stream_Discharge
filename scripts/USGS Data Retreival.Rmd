@@ -1,0 +1,142 @@
+---
+title: "Project Eddie Stream Discharge Module"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+# USGS has libraries to retreive data from their system.    
+
+# install libraries - do only one time when first runnign script    
+```{r install packages, message=TRUE, warning=TRUE}
+# https://github.com/USGS-R/dataRetrieval
+
+# general R packages to install if you dont have them
+# remove the "#" if you need to run the installations
+
+# install.packages("tidyverse") # installs a lot of things and ggplot
+# install.packages("scales") # allows great scale formatting on ggplot
+# install.packages("janitor") # clean names of columns and other things
+# install.packages("readxl") # read in excel files
+# install.packages("plotly") # interactive plots
+
+# specific to this module
+# install.packages("dataRetrieval") # USGS Data Retreiveal Method
+
+```
+
+We need to load the libraries in these packages - this has to be done evertime    
+```{r load libraries}
+# load these every time  
+library(tidyverse)
+library(scales)
+library(janitor)
+library(readxl)
+library(plotly)
+
+# load the USGS package
+library(dataRetrieval)
+
+```
+
+# Lets try to get some data 
+The codes you will get are belowshort
+Parameter Codes	  Short Name     Statistic Codes    Short name
+     00060	      Discharge         00001            Maximum
+     00065	      Gage Height       00002            Minimum
+     00010	      Temperature       00003            Mean
+     00400	      pH                00008            Median
+```{r}
+# Create variables to retreive
+siteNo <-     "01435000"         # this is the site code
+pCode <-      "00060"             # this is the parameter(s) to retreive
+start.date <- "1992-10-01"  # Begining date to retreive
+end.date <-   "2019-08-02"     # End date to retreive
+
+# the variables above are entered below 
+neversink.df <- readNWISuv(siteNumbers = siteNo,
+                          parameterCd = pCode,
+                          startDate = start.date,
+                          endDate = end.date)
+```
+
+
+Explore the data
+```{r}
+# the names in USGS format
+names(neversink.df)
+
+```
+
+# Rename variables
+```{r}
+neversink.df <- renameNWISColumns(neversink.df)
+
+names(neversink.df)
+```
+
+# Plot the data
+```{r}
+neversink.plot <- ggplot(data=neversink.df,
+                          aes(dateTime, Flow_Inst)) +
+        geom_line()
+neversink.plot
+```
+
+
+this is the interactive plot
+```{r}
+ggplotly(neversink.plot)
+```
+
+
+
+# Now read in *daily* data by year
+```{r}
+siteNo_daily <-     "01435000"
+pCode_daily <-      "00060"
+start.date_daily <- "1937-11-01"
+end.date_daily <-   "2019-08-02"
+
+nevversink_daily.df <-   readNWISdv(siteNumbers = siteNo_daily, 
+                        parameterCd = pCode_daily,
+                        startDate = start.date_daily, 
+                        endDate = end.date_daily)
+nevversink_daily.df <- renameNWISColumns(nevversink_daily.df)
+
+names(nevversink_daily.df)
+
+```
+
+
+```{r}
+daily.plot <- ggplot(nevversink_daily.df, aes(Date, Flow)) +
+  geom_line()
+daily.plot
+
+
+```
+
+```{r}
+ggplotly(daily.plot)
+```
+
+
+
+```{r}
+# siteNo_peak <-     "01435000"
+# pCode_peak <-      "00060"
+# start.date_peak <- "1850-01-01"
+# end.date_peaky <-   "2019-08-02"
+# 
+# nevversink_peak.df <-   readNWISstat(siteNumbers = siteNo_peak,
+#                         parameterCd = pCode_peak,
+#                         startDate = start.date_peak,
+#                         endDate = end.date_peak,
+#                         statReportType="annual", 
+#                         statType="mean")
+  
+
+
+```
+

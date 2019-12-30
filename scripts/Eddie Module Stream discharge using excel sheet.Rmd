@@ -1,0 +1,158 @@
+---
+title: "Eddie Module on Stream discharge"
+output: html_notebook
+---
+
+
+
+# USGS has libraries to retreive data from their system.    
+
+# install libraries - do only one time when first runnign script    
+```{r install packages, message=TRUE, warning=TRUE}
+# https://github.com/USGS-R/dataRetrieval
+
+# general R packages to install if you dont have them
+# remove the "#" if you need to run the installations
+
+# install.packages("devtools") # essential in installing other thigs
+# install.packages("tidyverse") # installs a lot of things and ggplot
+# install.packages("scales") # allows great scale formatting on ggplot
+# install.packages("lubridate") # makes working with dates easier
+# install.packages("janitor") # clean names of columns and other things
+# install.packages("readxl") # read in excel files
+# install.packages("plotly") # interactive plots
+# install.packages(skimr)
+# devtools::install_github("thomasp85/patchwork") # multiple plots
+
+# specific to this module
+# install.packages("dataRetrieval") # USGS Data Retreiveal Method
+```
+
+
+Libraires
+```{r laod libraries, message=TRUE, warning=TRUE}
+# load these every time  
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(janitor)
+library(readxl)
+library(skimr)
+library(plotly)
+library(patchwork)
+
+# load the USGS package
+library(dataRetrieval)
+```
+
+current data
+https://waterdata.usgs.gov/ny/nwis/uv/?site_no=01435000&PARAmeter_cd=00065,00060,63160
+
+all data
+https://waterdata.usgs.gov/nwis/inventory/?site_no=01435000&agency_cd=USGS
+
+
+# Read in file from excel sheet
+```{r}
+q.df <- read_excel("../data/stream_discharge_student_dataset.xlsx",
+                 sheet = "Neversink_All_Data",
+                 guess_max = 10000)
+```
+
+
+# Graph of discharge in 2013
+```{r}
+q.df %>% 
+  filter(datetime >= ymd("2013-01-01") & datetime <= ymd("2013-12-31")) %>% 
+  ggplot(aes(x = datetime, y=discharge_cfs)) +
+  geom_line() +
+  geom_point()
+```
+
+# Feb discharge
+```{r}
+feb.plot <- q.df %>% 
+  mutate(
+    month=month(datetime),
+    year = year(datetime)
+  ) %>%
+  filter(month == 2) %>%
+  group_by(year, month) %>%
+  summarise(datetime = first(datetime),
+            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>% 
+  ggplot(aes(x = datetime, y=discharge_cfs)) +
+  geom_line() +
+  geom_point() +
+  coord_cartesian(ylim = c(0,800))+
+  labs(y="Mean Discharge Frebruary (CFS)")
+feb.plot
+```
+
+
+# Aug discharge
+```{r}
+august.plot <- q.df %>% 
+  mutate(
+    month=month(datetime),
+    year = year(datetime)
+  ) %>%
+  filter(month == 8) %>%
+  group_by(year, month) %>%
+  summarise(datetime = first(datetime),
+            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>% 
+  ggplot(aes(x = datetime, y=discharge_cfs)) +
+  geom_line() +
+  geom_point() +
+  coord_cartesian(ylim = c(0,800))+
+  labs(y="Mean Discharge Frebruary (CFS)")
+august.plot
+```
+
+combine Plots
+```{r}
+feb.plot +
+  august.plot +
+  plot_layout(ncol = 2)
+```
+
+
+combine Plots
+```{r}
+feb.plot + geom_smooth(method="lm") +
+  august.plot + geom_smooth(method="lm") +
+  plot_layout(ncol = 2)
+```
+
+Regressions of q vs datetime for February
+```{r}
+feb.model <- q.df %>% 
+  mutate(
+    month=month(datetime),
+    year = year(datetime)
+  ) %>%
+  filter(month == 2) %>%
+  group_by(year, month) %>%
+  summarise(datetime = first(datetime),
+            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>%
+  lm(discharge_cfs ~ datetime, data=.)
+
+summary(feb.model)
+```
+
+Regressions of q vs datetime for August
+```{r}
+aug.model <- q.df %>% 
+  mutate(
+    month=month(datetime),
+    year = year(datetime)
+  ) %>%
+  filter(month == 8) %>%
+  group_by(year, month) %>%
+  summarise(datetime = first(datetime),
+            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>%
+  lm(discharge_cfs ~ datetime, data=.)
+
+summary(aug.model)
+```
+
+
