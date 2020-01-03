@@ -1,0 +1,164 @@
+---
+title: "Eddie module stream discharge from handout"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+# USGS has libraries to retreive data from their system.    
+
+# install libraries - do only one time when first runnign script    
+```{r install packages, message=TRUE, warning=TRUE}
+# https://github.com/USGS-R/dataRetrieval
+
+# general R packages to install if you dont have them
+# remove the "#" if you need to run the installations
+
+# install.packages("devtools") # essential in installing other thigs
+# install.packages("tidyverse") # installs a lot of things and ggplot
+# install.packages("scales") # allows great scale formatting on ggplot
+# install.packages("lubridate") # makes working with dates easier
+# install.packages("janitor") # clean names of columns and other things
+# install.packages("readxl") # read in excel files
+# install.packages("plotly") # interactive plots
+# install.packages(skimr)
+# devtools::install_github("thomasp85/patchwork") # multiple plots
+
+# specific to this module
+# install.packages("dataRetrieval") # USGS Data Retreiveal Method
+```
+
+
+Libraires
+```{r laod libraries, message=TRUE, warning=TRUE}
+# load these every time  
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(janitor)
+library(readxl)
+library(skimr)
+library(plotly)
+library(patchwork)
+
+# load the USGS package
+library(dataRetrieval)
+```
+
+current data
+https://waterdata.usgs.gov/ny/nwis/uv/?site_no=01435000&PARAmeter_cd=00065,00060,63160
+
+all data
+https://waterdata.usgs.gov/nwis/inventory/?site_no=01435000&agency_cd=USGS
+
+
+Read in file for ...
+```{r read in file}
+
+# The site is Neversink and the site number is 01435000
+# USGS 01435000 NEVERSINK RIVER NEAR CLARYVILLE NY
+
+site_no <-          "01435000"
+par_code <-         "00060"
+start.date <-      "1800-01-01"
+end.date <-        "2050-01-01"
+
+neversink_daily.df <- readNWISdv(siteNumbers = site_no,
+                        parameterCd = par_code,
+                        startDate = start.date,
+                        endDate = end.date)
+  
+# rename the columns
+neversink_daily.df <- renameNWISColumns(neversink_daily.df)
+```
+
+# we need to make a date column to plot with
+```{r}
+neversink_daily.df <- neversink_daily.df %>%
+  select(agency_cd, 
+         site_no, 
+         date = Date, 
+         discharge_cfs = Flow) 
+```
+
+# we need to make a date column to plot with
+```{r}
+neversink_daily.df <- neversink_daily.df %>%
+  mutate(month = month(date))
+```
+
+
+
+# Plot all data
+```{r}
+q.plot <- neversink_daily.df %>% 
+  ggplot(aes(date, discharge_cfs)) +
+  geom_point() +
+  geom_line()
+q.plot
+```
+
+# Plot February data 
+```{r}
+feb.plot <- neversink_daily.df %>% 
+  filter(month == 2) %>%
+  ggplot(aes(date, discharge_cfs)) +
+  geom_point() +
+  geom_line() +
+  labs(y="Mean Monthly Discharge m^3/sec", x="Date")
+feb.plot
+  
+```
+
+We can make it interactive
+```{r}
+ggplotly(feb.plot)
+```
+
+
+August data
+```{r}
+aug.plot <- neversink_daily.df %>%
+  filter(month == 8) %>%
+  ggplot(aes(date, discharge_cfs)) +
+  geom_point() +
+  geom_line() +
+  labs(y="Mean Monthly Discharge m^3/sec", x="Date")
+aug.plot
+```
+
+# Compare the plots
+```{r}
+feb_aug.plot <- feb.plot +
+                aug.plot +
+                plot_layout(ncol =1)
+feb_aug.plot
+```
+
+# add trend lines as straight lines
+```{r}
+feb_aug.plot <- feb.plot + geom_smooth(method="lm") +
+                aug.plot + geom_smooth(method="lm") +
+                plot_layout(ncol =1)
+feb_aug.plot
+```
+
+# How to see regression statistics
+```{r}
+feb.model <- neversink_daily.df %>% 
+  filter(month == 2) %>%
+  lm(discharge_cfs ~ date, data=.)
+summary(feb.model)
+
+```
+
+
+```{r}
+aug.model <- neversink_daily.df %>% 
+  filter(month == 8) %>%
+  lm(discharge_cfs ~ date, data=.)
+summary(aug.model)
+
+```
+
+
