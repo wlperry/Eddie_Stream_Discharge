@@ -5,9 +5,11 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# USGS has libraries to retreive data from their system.    
+# This script examines the discharge in Neversink Cr.      
+This script uses the excel sheet provided in the Eddie module. It is possible to download data from USGS and put it in a new excel sheet following the same format and rename the parts of the script. You can also use the USGS retrieval package to download up to date data directly from USGS.       
 
-# install libraries - do only one time when first runnign script    
+# Install libraries.   
+These are the libraries that are used in the script. These are installed only once and then can be commented out so they do not run in future execuations of the script.
 ```{r install packages, message=TRUE, warning=TRUE}
 # https://github.com/USGS-R/dataRetrieval
 
@@ -21,43 +23,60 @@ editor_options:
 # install.packages("janitor") # clean names of columns and other things
 # install.packages("readxl") # read in excel files
 # install.packages("plotly") # interactive plots
-# install.packages(skimr)
-# devtools::install_github("thomasp85/patchwork") # multiple plots
+# install.packages("skimr")
+# install.packages("patchwork") # multiple plots
 
 # specific to this module
 # install.packages("dataRetrieval") # USGS Data Retreiveal Method
 ```
 
 
-Libraires
+# Load Libraries    
+This code loads the libraries for working with the data
 ```{r laod libraries, message=TRUE, warning=TRUE}
 # load these every time  
-library(tidyverse)
-library(scales)
-library(lubridate)
-library(janitor)
-library(readxl)
-library(skimr)
-library(plotly)
-library(patchwork)
+library(tidyverse) # the tidyverse library with many sub libraries
+library(scales) # working with ggplot scales 
+library(lubridate) # working with dates
+library(janitor) # cleans up excel imports
+library(readxl) # read in excel files
+library(skimr) # does summary stats and other things
+library(plotly) # makes interactive plots
+library(patchwork) # combines many plots together
 
-# load the USGS package
-library(dataRetrieval)
+# # load the USGS package
+library(dataRetrieval) # utilities for downloading and working with USGS data
 ```
 
-current data
+# Source of Neversink data
+This is the data that is in the excel sheet that is used in this script.        
 https://waterdata.usgs.gov/ny/nwis/uv/?site_no=01435000&PARAmeter_cd=00065,00060,63160
-
-all data
+ 
+This is all of the data that is available for the site.         
 https://waterdata.usgs.gov/nwis/inventory/?site_no=01435000&agency_cd=USGS
 
 
-Read in file for ...
+# Read in USGS Data
+This allows you to read in the daily mean data for the USGS site.      
+Note Enter the following information and you can change this to get different sites or time ranges:        
+site_no: this is the site that you want to import     
+par_code:  these are the paramter code numbers - 00060 is discharge     
+           You can retreive other variables using:     
+           c("00060", "00065")    
+           00010 water temp    
+           00060 discharge     
+           00065 gage height      
+           00095 specific conductivity if available
+           
+start.date: date to start on      
+end.date:   date to end on     
+
 ```{r read in file}
 
 # The site is Neversink and the site number is 01435000
 # USGS 01435000 NEVERSINK RIVER NEAR CLARYVILLE NY
 
+# enter these variables
 site_no <-          "01435000"
 par_code <-         "00060"
 start.date <-      "1800-01-01"
@@ -72,7 +91,8 @@ neversink_daily.df <- readNWISdv(siteNumbers = site_no,
 neversink_daily.df <- renameNWISColumns(neversink_daily.df)
 ```
 
-# we need to make a date column to plot with
+# Rename columns
+This just renames the columns to lower case and variable names with units   
 ```{r}
 neversink_daily.df <- neversink_daily.df %>%
   select(agency_cd, 
@@ -81,42 +101,47 @@ neversink_daily.df <- neversink_daily.df %>%
          discharge_cfs = Flow) 
 ```
 
-# we need to make a date column to plot with
+# Create a month variable    
+The module would like to look at flows during differnet months. This creates a month column that can then be used to filter out and plot only the respective months.    
 ```{r}
 neversink_daily.df <- neversink_daily.df %>%
   mutate(month = month(date))
 ```
 
-
-
-# Plot all data
+# Plot all discharge data
+This is a plot of all of the data that is on the USGS website for daily mean values.
 ```{r}
-q.plot <- neversink_daily.df %>% 
-  ggplot(aes(date, discharge_cfs)) +
-  geom_point(size=0.1) +
-  geom_line()
-q.plot
+# saves the plot as q.plot so can be used later on   
+q.plot <- neversink_daily.df %>% # use this dataframe
+  ggplot(aes(date, discharge_cfs)) + # plot discharge_cfs versus date
+  geom_point(size=0.1) + # add points that are small
+  geom_line() # add a line on top of points
+q.plot # call the plot to display
 ```
 
 # Plot February data 
+This creates a plot of just February data. It can do this using pipes rather than creating subdataframes which is a key advantage of tidyverse. 
 ```{r}
+# saves as the feb.plot using the neversink_daily.df data
 feb.plot <- neversink_daily.df %>% 
-  filter(month == 2) %>%
-  ggplot(aes(date, discharge_cfs)) +
-  geom_point(size = 0.1) +
-  geom_line() +
-  labs(y="Mean Monthly Discharge m^3/sec", x="Date")
+  filter(month == 2) %>% # this filters out only February
+  ggplot(aes(date, discharge_cfs)) + # this plots discharge versus date
+  geom_point(size = 0.1) + # adds small points
+  geom_line() + # adds a line
+  labs(y="Mean Monthly Discharge m^3/sec", x="Date") # adds clean axes labels 
 feb.plot
   
 ```
 
-We can make it interactive
+# Interactive plot of feb data
+This is an interactive plot of the february data. You can zoom in and out and select particular pints to see the values.     
 ```{r}
 ggplotly(feb.plot)
 ```
 
 
-August data
+# August data
+Plot of August data only using eh above formate. The only thing to change is the value for the month variable. This could be improved by showing the monthly mean of data in the same format below adding a a stat_summary command to show monthly mean as well.
 ```{r}
 aug.plot <- neversink_daily.df %>%
   filter(month == 8) %>%
@@ -127,23 +152,29 @@ aug.plot <- neversink_daily.df %>%
 aug.plot
 ```
 
-# Compare the plots
+# Compare the February and August plots
+We can use Patchwork to put both plots on the same page to compare them
 ```{r}
 feb_aug.plot <- feb.plot +
                 aug.plot +
-                plot_layout(ncol =1)
+                plot_layout(ncol = 2)
 feb_aug.plot
 ```
 
-# add trend lines as straight lines
+# Add trend lines of discharge over time
+Because the data is over such a wide range I have zoomed in. There are two ways to zoom - the scale_x_continuous(limits = c(0,300)) will delete data that is not in this range. The coord_cartesian(ylim=c(0,300)) will zoom in without deleting data.
 ```{r}
-feb_aug.plot <- feb.plot + geom_smooth(method="lm") +
-                aug.plot + geom_smooth(method="lm") +
-                plot_layout(ncol =1)
+feb_aug.plot <- feb.plot + # call the feb plot
+                geom_smooth(method="lm") + # add a linear regression line
+                        coord_cartesian(ylim = c(0,300)) + # zoom into 0 - 300 
+                aug.plot + 
+                      geom_smooth(method="lm") + # add a linear regression line
+                      coord_cartesian(ylim = c(0,300)) + # zoom into 0 - 300 
+                plot_layout(ncol = 2) # make the plot layout 2 columns
 feb_aug.plot
 ```
 
-# How to see regression statistics
+# Regression statistics of teh data
 ```{r}
 feb.model <- neversink_daily.df %>% 
   filter(month == 2) %>%
