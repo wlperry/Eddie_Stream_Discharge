@@ -1,13 +1,12 @@
 ---
-title: "Eddie Module on Stream discharge"
+title: "Eddie Module on stream discharge"
 output: html_notebook
 ---
 
+# Analyzing stream discharge 
+This script uses the excel based data sheets from Neversink Creek.
 
-
-# USGS has libraries to retreive data from their system.    
-
-# install libraries - do only one time when first runnign script    
+## install libraries - do only one time when first runnign script    
 ```{r install packages, message=TRUE, warning=TRUE}
 # https://github.com/USGS-R/dataRetrieval
 
@@ -29,7 +28,7 @@ output: html_notebook
 ```
 
 
-Libraires
+## Load Libraires
 ```{r laod libraries, message=TRUE, warning=TRUE}
 # load these every time  
 library(tidyverse)
@@ -41,8 +40,8 @@ library(skimr)
 library(plotly)
 library(patchwork)
 
-# load the USGS package
-library(dataRetrieval)
+# # load the USGS package - this is only needed if it uses the USGS retrieval
+# library(dataRetrieval)
 ```
 
 current data
@@ -52,44 +51,48 @@ all data
 https://waterdata.usgs.gov/nwis/inventory/?site_no=01435000&agency_cd=USGS
 
 
-# Read in file from excel sheet
-```{r}
-q.df <- read_excel("../data/stream_discharge_student_dataset.xlsx",
-                 sheet = "Neversink_All_Data",
-                 guess_max = 10000)
+## Read in file from excel sheet
+```{r read file}
+q.df <- read_excel("../data/stream_discharge_student_dataset.xlsx", # name of the file and path
+                 sheet = "Neversink_All_Data", # name of the sheet as it is
+                 guess_max = 10000) # helps when there is missing data and guesses for 10k rows
 ```
 
 
-# Graph of discharge in 2013
+## Discharge Graph
+this is a graph of discharge in 2013 only. There are several ways to do this but this approach uses the dates you want to see the range of. A year variable could also be made here with mutate(year = year(datetime)) and then filter based on year number only.    
 ```{r}
-q.df %>% 
-  filter(datetime >= ymd("2013-01-01") & datetime <= ymd("2013-12-31")) %>% 
-  ggplot(aes(x = datetime, y=discharge_cfs)) +
-  geom_line() +
-  geom_point()
+q.df %>% # name of dataframe to get data from to feed into graph
+  filter(datetime >= ymd("2013-01-01") & datetime <= ymd("2013-12-31")) %>%  # filters out the date range 
+  ggplot(aes(x = datetime, y = discharge_cfs)) + # plots discharge versus datatime 
+  geom_line() + # add lines
+  geom_point() + # andd symbols
+  labs(y="Discharge (CFS)", x= "Date")
 ```
 
-# Feb discharge
+## Plot of February Discharge
+This is the other way to filter out only a certain year and month combined. Note there is no need to create new dataframes but it can all be done in the piped commands that feed eventually in to the graph.    
 ```{r}
-feb.plot <- q.df %>% 
-  mutate(
-    month=month(datetime),
-    year = year(datetime)
-  ) %>%
-  filter(month == 2) %>%
-  group_by(year, month) %>%
-  summarise(datetime = first(datetime),
-            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>% 
-  ggplot(aes(x = datetime, y=discharge_cfs)) +
-  geom_line() +
-  geom_point() +
-  coord_cartesian(ylim = c(0,800))+
-  labs(y="Mean Discharge Frebruary (CFS)")
-feb.plot
+feb.plot <- q.df %>% # store the graph in feb.plot and use the q.df dataset
+  mutate( # this allows you to do changes to the data 
+    month=month(datetime), # create a month variable
+    year = year(datetime) # create a year variable
+  ) %>% 
+  filter(month == 2) %>% # filter out only february - month 2
+  group_by(year, month) %>% # this is special here... groups by month and year
+  summarise(datetime = first(datetime), # gives the first data in the group
+            discharge_cfs= mean(discharge_cfs, na.rm=TRUE)) %>%  # takes the average of february discharge
+  ggplot(aes(x = datetime, y=discharge_cfs)) + # plot mean discharge versus date time
+  geom_line() + # add line
+  geom_point() + # add point
+  coord_cartesian(ylim = c(0,800))+ # zooms in and y axis goes 0 - 800
+  labs(y="Mean Discharge Frebruary (CFS)") # adds labels
+feb.plot # calls the plot
 ```
 
 
-# Aug discharge
+## Mean Augus Discharge
+This does the sam as for February plot above.
 ```{r}
 august.plot <- q.df %>% 
   mutate(
@@ -108,21 +111,23 @@ august.plot <- q.df %>%
 august.plot
 ```
 
-combine Plots
+## Combine February and August plots
+This uses patchwork to combine the plots with 2 columns
 ```{r}
-feb.plot +
-  august.plot +
-  plot_layout(ncol = 2)
+feb.plot + # calls the February plot
+  august.plot + # calls the August plot
+  plot_layout(ncol = 2) # tells the plot layout to be 1 columns
 ```
 
-combine Plots
+## Combine plots with regression lines
+This combines both plots with regression lines and you could zoom in by adding + coord_cartesian(ylim=c(X,Y)) behind each of the plots to zoom in. This does not remove data for the plots. If you set the limits with scale_y_continuous it would remove data points and change the regression lines.   
 ```{r}
 feb.plot + geom_smooth(method="lm") +
   august.plot + geom_smooth(method="lm") +
   plot_layout(ncol = 2)
 ```
 
-Regressions of q vs datetime for February
+## Regressions of q vs datetime for February
 ```{r}
 feb.model <- q.df %>% 
   mutate(
@@ -138,7 +143,7 @@ feb.model <- q.df %>%
 summary(feb.model)
 ```
 
-Regressions of q vs datetime for August
+## Regressions of q vs datetime for August
 ```{r}
 aug.model <- q.df %>% 
   mutate(

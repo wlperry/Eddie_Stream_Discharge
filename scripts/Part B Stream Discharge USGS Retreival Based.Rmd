@@ -6,9 +6,9 @@ editor_options:
 ---
 
 # This script examines the discharge in Neversink Cr.      
-This script uses the excel sheet provided in the Eddie module. It is possible to download data from USGS and put it in a new excel sheet following the same format and rename the parts of the script. You can also use the USGS retrieval package to download up to date data directly from USGS.       
+This script uses the USGS data retrieval package to download data fro Neversink Cr. This is more up to date than the excel sheet.
 
-# Install libraries.   
+## Install libraries.   
 These are the libraries that are used in the script. These are installed only once and then can be commented out so they do not run in future execuations of the script.
 ```{r install packages, message=TRUE, warning=TRUE}
 # https://github.com/USGS-R/dataRetrieval
@@ -31,7 +31,7 @@ These are the libraries that are used in the script. These are installed only on
 ```
 
 
-# Load Libraries    
+## Load Libraries    
 This code loads the libraries for working with the data
 ```{r laod libraries, message=TRUE, warning=TRUE}
 # load these every time  
@@ -48,7 +48,7 @@ library(patchwork) # combines many plots together
 library(dataRetrieval) # utilities for downloading and working with USGS data
 ```
 
-# Source of Neversink data
+## Source of Neversink data
 This is the data that is in the excel sheet that is used in this script.        
 https://waterdata.usgs.gov/ny/nwis/uv/?site_no=01435000&PARAmeter_cd=00065,00060,63160
  
@@ -56,7 +56,7 @@ This is all of the data that is available for the site.
 https://waterdata.usgs.gov/nwis/inventory/?site_no=01435000&agency_cd=USGS
 
 
-# Read in USGS Data
+## Read in USGS Data
 This allows you to read in the daily mean data for the USGS site.      
 Note Enter the following information and you can change this to get different sites or time ranges:        
 site_no: this is the site that you want to import     
@@ -76,36 +76,40 @@ end.date:   date to end on
 # The site is Neversink and the site number is 01435000
 # USGS 01435000 NEVERSINK RIVER NEAR CLARYVILLE NY
 
-# enter these variables
-site_no <-          "01435000"
-par_code <-         "00060"
-start.date <-      "1800-01-01"
-end.date <-        "2050-01-01"
+# enter these variables and they will be used in the next command
+site_no <-          "01435000" # the site number from USGS
+par_code <-         "00060" # the paramter code used for data to download
+start.date <-      "1800-01-01" # start date - this is set to download all data that might be there
+end.date <-        "2050-01-01" # end date - note will download up to 2050
 
-neversink_daily.df <- readNWISdv(siteNumbers = site_no,
-                        parameterCd = par_code,
-                        startDate = start.date,
-                        endDate = end.date)
+# stores data in neversink_daily.df 
+# these do not need to be changes as they are changed above
+neversink_daily.df <- readNWISdv(siteNumbers = site_no,  
+                                 # USGS read daily values with this site number
+                        parameterCd = par_code, # parameters to download
+                        startDate = start.date, # start date
+                        endDate = end.date) # end date 
   
 # rename the columns
-neversink_daily.df <- renameNWISColumns(neversink_daily.df)
+neversink_daily.df <- renameNWISColumns(neversink_daily.df) # rename the columns to work better
 ```
 
 # Rename columns
 This just renames the columns to lower case and variable names with units   
 ```{r}
-neversink_daily.df <- neversink_daily.df %>%
-  select(agency_cd, 
+neversink_daily.df <- neversink_daily.df %>% # use this dataframe to manipulate it and save to same
+# select selects which data to retain and can also rename variables
+    select(agency_cd,  
          site_no, 
          date = Date, 
-         discharge_cfs = Flow) 
+         discharge_cfs = Flow)  # renames Flow as discharge_cfs
 ```
 
 # Create a month variable    
 The module would like to look at flows during differnet months. This creates a month column that can then be used to filter out and plot only the respective months.    
 ```{r}
 neversink_daily.df <- neversink_daily.df %>%
-  mutate(month = month(date))
+  mutate(month = month(date)) # creates a month column to work with
 ```
 
 # Plot all discharge data
@@ -153,7 +157,7 @@ aug.plot
 ```
 
 # Compare the February and August plots
-We can use Patchwork to put both plots on the same page to compare them
+We can use patchwork to put both plots on the same page to compare them
 ```{r}
 feb_aug.plot <- feb.plot +
                 aug.plot +
@@ -174,7 +178,7 @@ feb_aug.plot <- feb.plot + # call the feb plot
 feb_aug.plot
 ```
 
-# Regression statistics of teh data
+# Regression statistics of February data
 ```{r}
 feb.model <- neversink_daily.df %>% 
   filter(month == 2) %>%
@@ -183,7 +187,7 @@ summary(feb.model)
 
 ```
 
-
+# Regression statistics of August data
 ```{r}
 aug.model <- neversink_daily.df %>% 
   filter(month == 8) %>%

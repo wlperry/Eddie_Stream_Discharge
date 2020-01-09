@@ -5,9 +5,11 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# USGS has libraries to retreive data from their system.    
+# USGS retreival tool to gather data and analyze flood frequency data 
+ 
 
-# install libraries - do only one time when first runnign script    
+## Install libraries 
+The libraries need to be installed only one time and then loaded each time the script is opened and run.  
 ```{r install packages, message=TRUE, warning=TRUE}
 # https://github.com/USGS-R/dataRetrieval
 
@@ -29,7 +31,8 @@ editor_options:
 ```
 
 
-Libraires
+## Load Libraires
+Load the libraries each time you run the script.    
 ```{r laod libraries, message=TRUE, warning=TRUE}
 # load these every time  
 library(tidyverse)
@@ -45,7 +48,9 @@ library(patchwork)
 library(dataRetrieval)
 ```
 
-Data from:
+## USGS Sites       
+These are the sites that are used in the data analysis below. The data can be downloaded again and then used for the analsyses.     
+
 USGS 12120000 MERCER CREEK NEAR BELLEVUE, WA
 https://waterdata.usgs.gov/nwis/inventory/?site_no=12120000
 
@@ -56,7 +61,8 @@ USGS 12108500, Newaukum Creek near Black Diamond, Washington
 https://waterdata.usgs.gov/nwis/inventory/?site_no=12108500
 
 
-Read in file for ...
+## Read in Excel Files      
+This reads in the files into a single dataframe that appears in the Environment tab in the upper right.    
 ```{r read in file}
 # Enter the site number below
 # Leave the start data and end data open as it will retreive all data
@@ -80,7 +86,8 @@ peak_q.df <- peak_q.df %>%
          gage_ht_ft = gage_ht)
 ```
 
-Rename the sites
+## Add site names
+This uses case_when which is essentially an if else statment to look at the site number and add a name to the site variable.    
 ```{r}
 peak_q.df <- peak_q.df %>% 
   mutate(site = case_when(
@@ -91,15 +98,26 @@ peak_q.df <- peak_q.df %>%
   ))
 ```
 
-# Subdivide the sites
+## Subdivide the data into 3 separate dtaframes      
+This will separate the single dataframe into 3 separate dataframes to work with.     
+
 ```{r}
 green.df <- peak_q.df %>% filter(site == "Green R")
+
 mercer.df <- peak_q.df %>% filter(site == "Mercer Cr")
+
 new.df <- peak_q.df %>% filter(site == "Newaukum Cr")
+
 ```
 
+## Graph of yearly peak discharge
+This graphs the discharge data from each stream. This is the max flow that occured each year. If the name of a variable is put inside of the aes( here ) statment it will map the values of that vaiable to the type of symbol or color you have designated.   These commands may be:
+`aes(x = x_variable, y = y_variable, *color* = variable name of sites)`    
+`aes(x = x_variable, y = y_variable, *fill* = variable name of sites)`    
+`aes(x = x_variable, y = y_variable, *shape* = variable name of sites)`    
+`aes(x = x_variable, y = y_variable, *line_type* = variable name of sites)`        
 
-# Graph of yearly peak discharge
+This is the graph using the commands above and you can try changing these around <br>     
 ```{r}
 peak_q.df %>% 
   ggplot(aes(x = date, y=discharge_cfs, color=site)) +
@@ -107,7 +125,12 @@ peak_q.df %>%
   geom_point()
 ```
 
-# Look at the highest discharge on record
+## Table of Highest dischage    
+There are several ways to obtian the maximum values.     
+1) Filter the data that has been grouped based on sites. This will return the rows of the data based on that filter.      
+2) Summarize the data. You coul do a grouping command of site and return the max discharge but this would require some extra code and would be a bit clunkier.      
+3) Use the Skim package to get a summary of the data by groups     
+
 ```{r}
 peak_q.df %>%
   group_by(site) %>% 
@@ -115,7 +138,8 @@ peak_q.df %>%
     discharge_cfs  == max(discharge_cfs, na.rm=TRUE))
 ```
 
-Discharge Statistics
+## Discharge Statistics     
+This will provide some basic summary statistics of the data.    
 ```{r}
 peak_q.df %>%
   group_by(site) %>% 
@@ -127,7 +151,8 @@ peak_q.df %>%
   )
 ```
 
-# Calculating probability
+# Calculating flood probability
+This will calculate flood probability
 ```{r}
 floodprob.df <- peak_q.df %>%
   group_by(site) %>% 
@@ -139,7 +164,8 @@ floodprob.df <- peak_q.df %>%
   
 ```
 
-# Recurrance interval plot
+# Plot of Recurrence Interval        
+Plots the recurrence interval for each of the sites.
 ```{r}
 floodprob.df %>% 
   ggplot(aes(x = recurrence, y=discharge_cfs, color=site)) +
@@ -147,7 +173,8 @@ floodprob.df %>%
   scale_y_continuous(labels= comma )
 ```
 
-# Log Recurrance interval plot
+# Log Recurrence interval plot    
+
 ```{r}
 floodprob.df %>% 
   group_by(site) %>% 
@@ -156,7 +183,11 @@ floodprob.df %>%
 ```
 
 
-# Look at Mercer Creek Before and after 1977
+# Look at data before and after particular times     
+This will work withthe individual streams to look at changes before and after a particular time.    
+
+## Mercer Creek Before and after 1977     
+This will create a new column before and after 1977. This could be done as usual a number of different ways but this might be the easiest to work with.   
 ```{r} 
 mercer_urban.df <- mercer.df %>% 
   mutate(year = year(date)) %>% 
@@ -166,7 +197,8 @@ mercer_urban.df <- mercer.df %>%
   ))
 ```
 
-# Calculating probability Mercer Cr Pre Post 1977
+## Calculating probability Mercer Cr Pre Post 1977
+Rather than grouping based on stream we are grouping based on pre_post 1977. This is essentially tyhe same thing we did above to caclulate probability.     
 ```{r}
 mercer_urban.df <- mercer_urban.df %>%
   group_by(pre_post) %>% 
@@ -177,7 +209,8 @@ mercer_urban.df <- mercer_urban.df %>%
   mutate(recurrence  = 1/prob)
 ```
 
-# Mercer Creek pre post recurrece interval plot
+## Mercer Creek pre post recurrece interval plot 
+Thsi plots the data as above grouped fro Mercer Cr pre and post 1977
 ```{r}
 mercer_urban.df %>% 
   ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
@@ -186,8 +219,8 @@ mercer_urban.df %>%
 
 ```
 
-
-# Green River Dam Effects
+## Green River Dam Effects
+This looks at the effect of a dam on Green River. Again this uses the same code above and since the variable names are the same we can copy the code form above to hear and change some of the values.  
 ```{r} 
 green_dam.df <- green.df %>% 
   mutate(year = year(date)) %>% 
@@ -197,7 +230,8 @@ green_dam.df <- green.df %>%
   ))
 ```
 
-# Calculating probability Green R Pre Post 1961
+## Calculating flood probability in Green R Pre Post 1961
+
 ```{r}
 green_dam.df <- green_dam.df %>%
   group_by(pre_post) %>% 
@@ -208,7 +242,8 @@ green_dam.df <- green_dam.df %>%
   mutate(recurrence  = 1/prob)
 ```
 
-# Green R pre post recurrece interval plot
+## Recurrece interval plot Green R pre post dam 
+
 ```{r}
 green_dam.df %>% 
   ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
@@ -217,17 +252,17 @@ green_dam.df %>%
 
 ```
 
-# New R River Dam Effects
+## Newaukum River Dam Effects
 ```{r} 
 new_dummy.df <- new.df %>% 
   mutate(year = year(date)) %>% 
   mutate(pre_post = case_when(
-    year <= 1977 ~ "pre_1977",
-    year > 1977 ~ "post_1977"
+    year <= 1961 ~ "pre_1961",
+    year > 1961 ~ "post_1961"
   ))
 ```
 
-# Calculating probability Green R Pre Post 1961
+## Calculating flood probability Newaukum R Pre Post 1961
 ```{r}
 new_dummy.df <- new_dummy.df %>%
   group_by(pre_post) %>% 
@@ -239,8 +274,7 @@ new_dummy.df <- new_dummy.df %>%
 ```
 
 
-
-# Mercer Creek pre post recurrece interval plot
+## Newaukum R pre post recurrece interval plot
 ```{r}
 new_dummy.df %>% 
   ggplot(aes(x = recurrence, y=discharge_cfs, color=pre_post)) +
